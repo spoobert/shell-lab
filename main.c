@@ -5,17 +5,41 @@
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <fcntl.h>
 
 void fatalError( const char *s){
     perror( s );
     exit( 1 );
+}
+// making this function void unlike others
+void    doInsertRight( int insertIndex, char *argv[] ){
+    pid_t pid;
+    argv[insertIndex] = NULL;
+    const char *path = argv[ insertIndex + 1 ];
+    int fd; 
+    switch ( pid = fork() ){
+        case -1:
+            fatalError(" >  fork failed");
+        case 0: 
+            fd = open( path , O_WRONLY );
+            if( dup2( fd , 1 ) == -1 )
+                fatalError(" > dup2 problems");
+            if( close( fd ) == -1 )
+                fatalError( "problems closing 0 and 1 in insert" );
+            execvp( argv[0], argv );
+            fatalError( "problems with insertR left opperand" );
+    }
+
+
+    
+    while( wait(NULL) != -1 );
 }
 
 int doPipe( int pipeIndex, char *argv[] ){
     int pfd[2];
     pid_t pid;
     argv[pipeIndex] = NULL;
-    char **rOperand = &argv[ pipeIndex + 1];
+    char **rOperand = &argv[ pipeIndex + 1 ];
     
     if ( pipe(pfd) == -1 )
         fatalError( "pipe setup failed" );
@@ -57,6 +81,8 @@ int doCommand( int argc, char *argv[]){
     for( int i = 0 ; i < argc ; i++ ){
         if( *argv[i] == '|')
             return doPipe( i , argv ); 
+        else if( *argv[i] == '>' )
+            doInsertRight( i , argv );
     }
     switch ( pid = fork() ){
         case -1:
