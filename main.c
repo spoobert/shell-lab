@@ -14,6 +14,7 @@ void fatalError( const char *s){
 // making this function void unlike others
 void    doInsertRight( int insertIndex, char *argv[] ){
     pid_t pid;
+    //use ternary operator to pick > or < 
     argv[insertIndex] = NULL;
     const char *path = argv[ insertIndex + 1 ];
     int fd; 
