@@ -12,18 +12,21 @@ void fatalError( const char *s){
     exit( 1 );
 }
 // making this function void unlike others
-void    doInsertRight( int insertIndex, char *argv[] ){
+void    doInsertion( int insertIndex, char *argv[] ){
     pid_t pid;
     //use ternary operator to pick > or < 
+    int in = *argv[insertIndex] == '<';
+    int mode = in ? O_RDONLY : (O_WRONLY|O_CREAT|O_TRUNC);
+    int fdIndex = in ? 0 : 1;
     argv[insertIndex] = NULL;
     const char *path = argv[ insertIndex + 1 ];
     int fd; 
     switch ( pid = fork() ){
         case -1:
-            fatalError(" >  fork failed");
+            fatalError("< >  fork failed");
         case 0: 
-            fd = open( path , O_WRONLY );
-            if( dup2( fd , 1 ) == -1 )
+            fd = open( path , mode );
+            if( dup2( fd , fdIndex ) == -1 )
                 fatalError(" > dup2 problems");
             if( close( fd ) == -1 )
                 fatalError( "problems closing 0 and 1 in insert" );
@@ -35,8 +38,13 @@ void    doInsertRight( int insertIndex, char *argv[] ){
     
     while( wait(NULL) != -1 );
 }
+// may need extra file descriptor swap 
+//after fork + exec(1st grep) need to ...
+// where is that file descriptor sitting then 
+// do some changes
 
-int doPipe( int pipeIndex, char *argv[] ){
+//who outputs the no such file or directory
+int doPipe( int pipeIndex, char *argv[]){
     int pfd[2];
     pid_t pid;
     argv[pipeIndex] = NULL;
@@ -44,7 +52,9 @@ int doPipe( int pipeIndex, char *argv[] ){
     
     if ( pipe(pfd) == -1 )
         fatalError( "pipe setup failed" );
- 
+
+  
+
     switch ( pid = fork() ){
         case -1:
             fatalError( "stdin fork");
@@ -76,19 +86,24 @@ int doPipe( int pipeIndex, char *argv[] ){
     while( wait(NULL) != -1 );
     return 1;
 }
-
+//you may want to have wait
 int doCommand( int argc, char *argv[]){
     pid_t pid;
     for( int i = 0 ; i < argc ; i++ ){
         if( *argv[i] == '|')
             return doPipe( i , argv ); 
-        else if( *argv[i] == '>' )
-            doInsertRight( i , argv );
+        else if( *argv[i] == '>' || *argv[i] == '<' ){
+            doInsertion( i , argv );  
+            //TODO change doInsertion to return like do Pipe
+            return 0;          
+        }
     }
     switch ( pid = fork() ){
         case -1:
             fatalError( "doCommand fork failed" );
         case 0:
+        //TODO fix line below and add to before doPipe exec
+            printf( argv[0] );
             execvp( argv[0], argv );
             fatalError( "execvp doCommand failed" );
     }
